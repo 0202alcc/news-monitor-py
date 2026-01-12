@@ -30,26 +30,6 @@ def linearize_html(html: str) -> str:
     return text
 
 # ----------------------------
-# Date detection
-# ----------------------------
-def find_date_lines(lines: List[str]) -> List[int]:
-    """Return the line indices containing dates."""
-    return [i for i, line in enumerate(lines) if DATE_REGEX.search(line)]
-
-# ----------------------------
-# Cropping
-# ----------------------------
-def crop_lines_by_dates(lines: List[str], date_indices: List[int], padding: int = 1) -> List[str]:
-    """Crop lines from just before first date to just after last date."""
-    if not date_indices:
-        return []
-    
-    start = max(0, date_indices[0] - padding)
-    end = min(len(lines), date_indices[-1] + padding + 1)
-    
-    return lines[start:end]
-
-# ----------------------------
 # Cleaning
 # ----------------------------
 def clean_lines(lines: List[str]) -> List[str]:
@@ -64,31 +44,35 @@ def clean_lines(lines: List[str]) -> List[str]:
 # ----------------------------
 # Press region extraction
 # ----------------------------
-def extract_press_region(html: str) -> str:
+def extract_press_region(html: str, padding: int = 2) -> str:
     """
     Crop HTML to only include the press region (dense cluster of dates + headlines).
     Returns HTML string.
     """
     linear_text = linearize_html(html)
     lines = linear_text.splitlines()
-    date_indices = find_date_lines(lines)
-    cropped_lines = crop_lines_by_dates(lines, date_indices, padding=2)
+
+    # Find date lines
+    date_indices = [i for i, line in enumerate(lines) if DATE_REGEX.search(line)]
+    if not date_indices:
+        return html  # fallback: return full HTML
+
+    start = max(0, date_indices[0] - padding)
+    end = min(len(lines), date_indices[-1] + padding + 1)
+    cropped_lines = lines[start:end]
     cleaned_lines = clean_lines(cropped_lines)
 
     print(f"[DEBUG] Date lines: {date_indices}")
     print(f"[DEBUG] Cropped {len(cropped_lines)} lines, cleaned {len(cleaned_lines)} lines")
 
-    # Build a minimal HTML with only the relevant text
+    # Build a minimal HTML with only the relevant <a> tags that match cleaned lines
     soup = BeautifulSoup(html, "html.parser")
     press_html = BeautifulSoup("", "html.parser")
-    
-    # Use a set for fast lookup
     cleaned_set = set(cleaned_lines)
-
     matches = 0
+
     for tag in soup.find_all(["a", "p", "div", "span"], recursive=True):
         text = tag.get_text(strip=True)
-        # Include tag if any cleaned line is substring of tag text
         if any(cl in text for cl in cleaned_set):
             press_html.append(tag)
             matches += 1
@@ -97,45 +81,50 @@ def extract_press_region(html: str) -> str:
     return str(press_html)
 
 # ----------------------------
-# Article extraction
+# Article extraction (line-based)
 # ----------------------------
-def extract_articles(cropped_html: str) -> List[Dict]:
+def extract_articles_from_lines(html: str) -> List[Dict]:
     """
-    Parse the cropped HTML and return a list of articles with date, headline, and URL if available.
+    Extract articles by scanning lines in order.
+    Each date applies to the headlines that follow until a new date appears.
     """
-    soup = BeautifulSoup(cropped_html, "html.parser")
+    linear_text = linearize_html(html)
+    lines = linear_text.splitlines()
+    lines = clean_lines(lines)
+
+    # For mapping URLs, build a lookup of text -> href
+    soup = BeautifulSoup(html, "html.parser")
+    link_lookup = {}
+    for a in soup.find_all("a", href=True):
+        text = a.get_text(strip=True)
+        if text:
+            href = a["href"]
+            if href.startswith("/"):
+                href = BASE_URL + href
+            link_lookup[text] = href
+
     articles = []
     current_date = None
 
-    for el in soup.find_all(["a", "p", "div", "span"], recursive=True):
-        text = el.get_text(strip=True)
-        if not text:
-            continue
-
-        # Flexible date detection
-        match = DATE_REGEX.search(text)
+    for line in lines:
+        # Detect date
+        match = DATE_REGEX.search(line)
         if match:
             current_date = match.group().strip()
             print(f"[DEBUG] Found date: {current_date}")
             continue
 
-        # Skip lines that are just UI noise
-        if re.search(r"(filter|showing \d+ of|back to top|close)", text, re.I):
+        # Skip noise
+        if re.search(r"(filter|showing \d+ of|back to top|close)", line, re.I):
             continue
 
-        href = el.get("href")
-        if href:
-            # Convert relative URLs to absolute
-            if href.startswith("/"):
-                href = BASE_URL + href
-
-        article = {
-            "date": current_date if current_date else "",
-            "headline": text,
-            "url": href if href else None
-        }
-
         if current_date:
+            url = link_lookup.get(line, None)
+            article = {
+                "date": current_date,
+                "headline": line,
+                "url": url
+            }
             articles.append(article)
             print(f"[DEBUG] Added article: {article}")
 
@@ -161,17 +150,17 @@ def load_page(url: str) -> str:
 if __name__ == "__main__":
     URL = "https://www.nyc.gov/mayors-office/news/?"
     html = load_page(URL)
-    
+
     # Crop press region for article extraction
     cropped_html = extract_press_region(html)
-    
-    # Extract structured articles
-    article_list = extract_articles(cropped_html)
-    
+
+    # Extract structured articles (line-based mapping)
+    article_list = extract_articles_from_lines(cropped_html)
+
     # Optional: print cropped text for debugging
     print("\n=== CROPPED PRESS REGION ===\n")
-    print(BeautifulSoup(cropped_html, "html.parser").get_text("\n"))
-    
+    print(BeautifulSoup(cropped_html, "html.parser"))
+
     # Print structured JSON
     print("\n=== EXTRACTED ARTICLES ===\n")
     print(json.dumps(article_list, indent=2))
