@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ page.title }}</title>
+</head>
+<body>
+    <h1>{{ page.title }}</h1>
+    <img src="{{ page.icon }}" width="32" height="32">
+    <p>URL: <a href="{{ page.url }}">{{ page.url }}</a></p>
+
+    <h2>Articles</h2>
+    <ul>
+    {% for a in page.articles %}
+        <li>
+            {{ a.date }}: <a href="{{ a.url }}">{{ a.headline }}</a>
+        </li>
+    {% endfor %}
+    </ul>
+
+    <a href="{{ url_for('dashboard') }}">Back to dashboard</a>
+</body>
+</html>

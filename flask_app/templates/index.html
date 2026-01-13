@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Press Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Prebid / GPT -->
+    <script src="{{ url_for('static', filename='prebid.js') }}"></script>
+    <script src="{{ url_for('static', filename='prebid-setup.js') }}"></script>
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</head>
+<body>
+    <h1>Press Dashboard</h1>
+
+    <!-- Add page form -->
+    <form action="{{ url_for('add_page') }}" method="post" class="add-page-form">
+        <input type="text" name="url" placeholder="Paste press page URL" required size="50">
+        <button type="submit">Add Page</button>
+    </form>
+
+    <!-- Global ad (e.g., top banner) -->
+    <div id="ad-slot-global" class="ad-slot ad-slot-global" style="width: 728px; height: 90px;"></div>
+
+    <!-- Tabs -->
+    <div id="tabs">
+        {% for page_id, page in pages.items() %}
+            {% if page.articles %}
+                <div class="tab" id="tab-{{ page_id }}" onclick="switchTab('{{ page_id }}')">
+                    {% if page.icon %}
+                        <img src="{{ page.icon }}" class="icon">
+                    {% endif %}
+                    {{ page.title }}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Tab contents -->
+    <div id="tab-contents">
+        {% for page_id, page in pages.items() %}
+            <div class="tab-content" id="content-{{ page_id }}">
+                <!-- Per-tab ad -->
+                <div id="ad-slot-{{ page_id }}" class="ad-slot ad-slot-tab" style="width: 300px; height: 250px; margin-bottom: 10px;"></div>
+
+                <!-- Articles list -->
+                <ul class="articles-list">
+                    {% for article in page.articles %}
+                        <li>
+                            <span class="article-date">{{ article.date }}</span>
+                            <a href="{{ article.url }}" target="_blank">{{ article.headline }}</a>
+                            {% if article.is_new %}
+                                <span class="new-article">NEW</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                <p class="last-checked"><strong>Last checked:</strong> {{ page.timestamp }}</p>
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

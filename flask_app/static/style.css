@@ -1,0 +1,65 @@
+/* General styling */
+body { 
+    font-family: sans-serif; 
+    padding: 20px; 
+}
+
+/* Tabs */
+.tab { 
+    display: inline-block; 
+    padding: 8px 15px; 
+    margin-right: 5px; 
+    cursor: pointer; 
+    border: 1px solid #ccc; 
+    border-radius: 5px 5px 0 0; 
+    background: #eee; 
+}
+.tab.active { 
+    background: #fff; 
+    font-weight: bold; 
+    border-bottom: 1px solid #fff; 
+}
+
+/* Tab content */
+.tab-content { 
+    display: none; 
+    border: 1px solid #ccc; 
+    border-top: none; 
+    padding: 10px; 
+}
+.tab-content.active { 
+    display: block; 
+}
+
+/* Articles */
+ul { 
+    list-style-type: none; 
+    padding-left: 0; 
+}
+li { 
+    margin-bottom: 5px; 
+}
+.article-date { 
+    color: #888; 
+    font-size: 0.9em; 
+    margin-right: 5px; 
+}
+.new-article { 
+    color: green; 
+    font-weight: bold; 
+    margin-left: 5px; 
+}
+.icon { 
+    width: 24px; 
+    height: 24px; 
+    vertical-align: middle; 
+    margin-right: 5px; 
+}
+
+/* Ad container */
+#ad-container { 
+    margin: 20px 0; 
+    text-align: center; 
+    border: 1px dashed #aaa; 
+    padding: 10px; 
+}

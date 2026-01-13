@@ -13,17 +13,26 @@ class MetadataExtractor:
         if not text:
             return "untitled"
 
+        # Normalize unicode → ASCII
         text = unicodedata.normalize("NFKD", text)
         text = text.encode("ascii", "ignore").decode("ascii")
-        text = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "", text)
-        text = re.sub(r"\s+", replacement, text)
-        text = re.sub(rf"{re.escape(replacement)}+", replacement, text)
+
+        # Replace any non-alphanumeric characters with the replacement
+        text = re.sub(r"[^a-zA-Z0-9\- ]", "", text)  # keep letters, numbers, dash, space
+        text = re.sub(r"\s+", replacement, text)      # replace whitespace with replacement
+        text = re.sub(rf"{re.escape(replacement)}+", replacement, text)  # collapse multiple
+
+        # Trim leading/trailing separators and dots
         text = text.strip(f"{replacement}.")
 
+        # Windows reserved names check
         if text.upper() in WINDOWS_RESERVED:
             text = f"{text}_file"
 
-        return text[:max_length] or "untitled"
+        # Enforce length
+        text = text[:max_length].rstrip(replacement)
+
+        return text or "untitled"
 
     def extract(self, url: str) -> dict:
         resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=self.timeout)
